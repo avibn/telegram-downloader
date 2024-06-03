@@ -93,6 +93,10 @@ This will start the bot in your local environment.
 
 ## Usage<a name = "usage"></a>
 
+<p align="center">
+  <img src="/public/screenshot.png" alt="Telegram bot screenshot" width="600">
+</p>
+
 To use the bot, simply direct message it or add it to a group, depending on what you set as the `CHAT_ID`.
 
 You can use the `/help` command to learn more about how to use the bot.
