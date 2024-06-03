@@ -164,3 +164,4 @@ cython_debug/
 # Custom
 testing/
 bot-api/
+downloads/
