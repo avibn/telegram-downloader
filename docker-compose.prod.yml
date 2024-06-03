@@ -24,6 +24,8 @@ services:
         volumes:
             - ${DOWNLOAD_TO_DIR}:/app/downloads
             - bot-api-data:/var/lib/telegram-bot-api
+        depends_on:
+            - telegram-bot-api
         restart: unless-stopped
 
 volumes:
