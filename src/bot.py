@@ -1,9 +1,13 @@
+# Environment variables
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import logging
 import os
 import shutil
 import time
 
-from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
@@ -14,9 +18,9 @@ from telegram.ext import (
     filters,
 )
 
-# Environment variables
-load_dotenv()
+from .auth import auth_required
 
+# Environment variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 LOCAL_BOT_API_URL = os.getenv("LOCAL_BOT_API_URL")
 BOT_API_DIR = os.getenv("BOT_API_DIR")
@@ -44,6 +48,7 @@ commands = {
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a list of available commands to the user."""
     commands_list = "The following commands are available:\n" + "\n".join(
         [f"{key} - {value}" for key, value in commands.items()]
     )
@@ -54,6 +59,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send a start message to the user."""
     user = update.effective_user
     await update.message.reply_html(
         f"Hi {user.mention_html()}! I'm a bot that can download files for you. "
@@ -63,6 +69,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Send user and chat IDs to the user."""
     user = update.effective_user
     await update.message.reply_text(
         f"*User ID*: {user.id}\n*Chat ID*: {update.effective_chat.id}",
@@ -70,7 +77,9 @@ async def info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+@auth_required
 async def download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Download the file sent by the user."""
     logger.info("Download command received")
 
     # Check if file exists in DOWNLOAD_TO_DIR already
@@ -97,7 +106,9 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
+@auth_required
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle the confirmation button click for downloading the file."""
     logger.info("Button command received")
     query = update.callback_query
 
