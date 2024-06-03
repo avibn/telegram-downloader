@@ -1,0 +1,33 @@
+version: "3.7"
+
+services:
+    telegram-bot-api:
+        image: aiogram/telegram-bot-api:latest
+        environment:
+            TELEGRAM_API_ID: "${TELEGRAM_API_ID}"
+            TELEGRAM_API_HASH: "${TELEGRAM_API_HASH}"
+            TELEGRAM_LOCAL: "${TELEGRAM_LOCAL}"
+        volumes:
+            - bot-api-data:/var/lib/telegram-bot-api
+        # env_file:
+        #     - .env
+
+    bot:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        environment:
+            LOCAL_BOT_API_URL: "http://telegram-bot-api:8081"
+            BOT_API_DIR: "/var/lib/telegram-bot-api/"
+            DOWNLOAD_TO_DIR: "./downloads/"
+            BOT_TOKEN: "${BOT_TOKEN}"
+            USER_ID: "${USER_ID}"
+            CHAT_ID: "${CHAT_ID}"
+        volumes:
+            - ${DOWNLOAD_TO_DIR}:/app/downloads
+            - bot-api-data:/var/lib/telegram-bot-api
+        # env_file:
+        #     - .env
+
+volumes:
+    bot-api-data:

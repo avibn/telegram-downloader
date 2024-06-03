@@ -9,6 +9,8 @@ services:
             TELEGRAM_API_HASH: "${TELEGRAM_API_HASH}"
             TELEGRAM_LOCAL: "${TELEGRAM_LOCAL}"
         volumes:
-            - ./bot-api:/var/lib/telegram-bot-api
+            - ${BOT_API_DIR}:/var/lib/telegram-bot-api
         ports:
             - 8081:8081
+        env_file:
+            - .env
