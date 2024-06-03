@@ -10,8 +10,7 @@ services:
             TELEGRAM_LOCAL: "${TELEGRAM_LOCAL}"
         volumes:
             - bot-api-data:/var/lib/telegram-bot-api
-        env_file:
-            - .env
+        restart: unless-stopped
 
     bot:
         image: ghcr.io/avibn/telegram-downloader:main
@@ -25,8 +24,7 @@ services:
         volumes:
             - ${DOWNLOAD_TO_DIR}:/app/downloads
             - bot-api-data:/var/lib/telegram-bot-api
-        env_file:
-            - .env
+        restart: unless-stopped
 
 volumes:
     bot-api-data:
