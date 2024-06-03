@@ -1,4 +1,4 @@
-# This file is used to run the local telegram bot-api service and run the bot from image in github registry
+# This file is used to run the local telegram bot-api service and *build* & run the bot
 version: "3.7"
 
 services:
@@ -10,11 +10,13 @@ services:
             TELEGRAM_LOCAL: "${TELEGRAM_LOCAL}"
         volumes:
             - bot-api-data:/var/lib/telegram-bot-api
-        env_file:
-            - .env
+        # env_file:
+        #     - .env
 
     bot:
-        image: ghcr.io/avibn/telegram-downloader:main
+        build:
+            context: .
+            dockerfile: Dockerfile
         environment:
             LOCAL_BOT_API_URL: "http://telegram-bot-api:8081"
             BOT_API_DIR: "/var/lib/telegram-bot-api/"
@@ -25,8 +27,8 @@ services:
         volumes:
             - ${DOWNLOAD_TO_DIR}:/app/downloads
             - bot-api-data:/var/lib/telegram-bot-api
-        env_file:
-            - .env
+        # env_file:
+        #     - .env
 
 volumes:
     bot-api-data:
