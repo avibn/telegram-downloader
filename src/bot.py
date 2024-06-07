@@ -5,6 +5,7 @@ load_dotenv()
 
 import logging
 import os
+import platform
 import shutil
 import time
 
@@ -154,6 +155,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Make DOWNLOAD_TO_DIR if it doesn't exist
         os.makedirs(DOWNLOAD_TO_DIR, exist_ok=True)
         shutil.move(current_file_path, move_to_path)
+
+        # If linux, give file correct permissions
+        if platform.system() == "Linux":
+            os.chmod(move_to_path, 0o664)
 
         response_message = (
             f"File downloaded successfully.\n"
