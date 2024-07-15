@@ -97,8 +97,10 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
     # Confirmation message
-    await update.message.reply_text(
-        response_message,
+    await context.bot.send_message(
+        chat_id=update.message.chat_id,
+        text=response_message,
+        reply_to_message_id=update.message.message_id,
         parse_mode="MarkdownV2",
         reply_markup=InlineKeyboardMarkup(
             [
