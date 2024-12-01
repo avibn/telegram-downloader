@@ -1,208 +1,198 @@
 import logging
 import os
 import platform
-import shutil
 import time
 
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import ContextTypes, filters
+from telethon import Button, types
+from telethon.events import CallbackQuery, NewMessage
 
-from ..middlewares.auth import auth_required
 from ..middlewares.handlers import (
-    callback_query_handler,
+    callback_handler,
     command_handler,
-    message_handler,
 )
 from ..models import DownloadingFile
+from ..utils import (
+    calculate_download_eta,
+    check_file_exists,
+    create_blockquote,
+    get_file_name,
+)
+from ..utils.env import env
 
 logger = logging.getLogger(__name__)
-
-# Environment variables
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-BOT_API_DIR = os.getenv("BOT_API_DIR")
-DOWNLOAD_TO_DIR = os.getenv("DOWNLOAD_TO_DIR")
-
-# Replacing colons with a different character for Windows
-TOKEN_SUB_DIR = BOT_TOKEN.replace(":", "") if os.name == "nt" else BOT_TOKEN
 
 # Current downloading files
 downloading_files: dict[str, DownloadingFile] = {}
 
 
-def check_file_exists(file_id: str, file_name: str) -> tuple[bool, str]:
-    """
-    Check if a file exists in the download directory or is currently being downloaded.
-
-    Args:
-        file_id (str): The ID of the file to check.
-        file_name (str): The name of the file to check.
-
-    Returns:
-        tuple[bool, str]: A tuple containing a boolean value and a message.
-    """
-    if os.path.exists(DOWNLOAD_TO_DIR + file_name):
-        return True, "File already exists in downloads folder."
-
-    if file_id in downloading_files:
-        return True, "File is already being downloaded."
-
-    # Check file_name in downloading_files
-    if any(file.file_name == file_name for file in downloading_files.values()):
-        return True, "File is already being downloaded."
-
-    return False
-
-
-@command_handler("status")
-async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@command_handler(
+    pattern="/status", description="Get downloading files status", admin_only=True
+)
+async def status(event: NewMessage.Event) -> None:
     """Send downloading files status to the user."""
     if not downloading_files:
-        await update.message.reply_text("No files are being downloaded at the moment.")
+        await event.reply("No files are being downloaded at the moment.")
         return
 
-    status_message = "*Downloading files status:*\n\n"
+    status_message = "<strong>Downloading files status:</strong>\n\n"
     for file in downloading_files.values():
-        status_message += (
-            f"> 📄 *File name:*   `{file.file_name}`\n"
-            f"> 💾 *File size:*   `{file.file_size_mb}`\n"
-            f"> ⏰ *Start time:*   `{file.start_datetime}`\n"
-            f"> ⏱ *Duration:*   `{file.download_time}`\n\n"
+        status_message += create_blockquote(
+            {
+                "📄File name": file.file_name,
+                "💾File size": file.file_size_mb,
+                "⏰Start time": file.start_datetime,
+                "⏱Duration": file.download_time,
+                "⏳Data received": f"{file.received_mb}/{file.total_mb}",
+                "⏳Progress": f"{file.progress:.2f}%",
+            }
         )
 
-    await update.message.reply_text(status_message, parse_mode="MarkdownV2")
+    await event.reply(status_message, parse_mode="html")
 
 
-@message_handler(filters.Document.VIDEO)
-@auth_required
-async def download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@command_handler()
+async def download(event: NewMessage.Event) -> None:
     """Download the file sent by the user."""
     logger.info("Download command received")
 
-    # Check if file already exists or is being downloaded
-    if check := check_file_exists(
-        update.message.document.file_id, update.message.document.file_name
-    ):
-        await update.message.reply_text(check[1])
+    message: types.Message = event.message
+    if not message.media:
         return
 
-    # File details
-    file_id = update.message.document.file_id
-    file_name = update.message.document.file_name
-    file_size = DownloadingFile.convert_size(update.message.document.file_size)
+    document = message.media.document
+    file_name = get_file_name(document)
+
+    # Check if file already exists or is being downloaded
+    check = check_file_exists(document.id, file_name, downloading_files)
+    if check.exists:
+        await event.reply(check.message)
+        return
+
+    file_size = DownloadingFile.convert_size(document.size)
 
     response_message = (
-        f"Are you sure you want to download the file?\n\n"
-        f"> 📄 *File name:*   `{file_name}`\n"
-        f"> 💾 *File size:*   `{file_size}`\n"
+        "Are you sure you want to download the file?\n\n"
+        + create_blockquote(
+            {
+                "📄File name": file_name,
+                "💾File size": file_size,
+            }
+        )
     )
 
     # Confirmation message
-    await context.bot.send_message(
-        chat_id=update.message.chat_id,
-        text=response_message,
-        reply_to_message_id=update.message.message_id,
-        parse_mode="MarkdownV2",
-        reply_markup=InlineKeyboardMarkup(
+    await event.reply(
+        message=response_message,
+        buttons=[
             [
-                [
-                    InlineKeyboardButton("Yes", callback_data="yes"),
-                    InlineKeyboardButton("No", callback_data="no"),
-                ]
-            ]
-        ),
+                Button.inline("Yes", b"yes"),
+                Button.inline("No", b"no"),
+            ],
+        ],
+        parse_mode="html",
     )
 
 
-@callback_query_handler()
-@auth_required
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+@callback_handler(admin_only=True)
+async def callback(event: CallbackQuery.Event):
     """Handle the confirmation button click for downloading the file."""
     logger.info("Button command received")
-    query = update.callback_query
 
-    await query.answer()
+    # Get replied message
+    confirm_message = await event.get_message()
+    video_message = await confirm_message.get_reply_message()
 
-    # Replied to message
-    message = update.effective_message.reply_to_message
-    file_name = message.document.file_name
+    # Remove buttons
+    await confirm_message.edit(buttons=None, parse_mode="html")
 
-    if query.data == "yes":
+    if event.data == b"yes":
         logger.info("Downloading file...")
+        document = video_message.media.document
+        file_name = get_file_name(document)
 
         # Check if file already exists or is being downloaded
-        if check := check_file_exists(message.document.file_id, file_name):
-            await message.reply_text(check[1])
-            return
+        check = check_file_exists(document.id, file_name, downloading_files)
+        if check.exists:
+            return await event.reply(check.message)
 
-        start_time = time.time()
+        downloading_message = await event.reply("⬇️ Downloading file...")
 
-        # Add file to downloading_files
+        # Store file metadata
         downloading_file = DownloadingFile(
             file_name=file_name,
-            file_size=message.document.file_size,
-            start_time=start_time,
+            file_size=document.size,
+            mime_type=document.mime_type,
         )
-        downloading_files[message.document.file_id] = downloading_file
+        downloading_files[document.id] = downloading_file
+        file_path = os.path.join(env.DOWNLOAD_TO_DIR, file_name)
+        last_progress_edit = 0
 
-        # Send downloading message
-        await message.reply_text("⬇️ Downloading file...")
+        async def progress_callback(current, total):
+            """
+            Callback function to update the download progress.
+            Args:
+                current (int): The current amount of data downloaded.
+                total (int): The total amount of data to be downloaded.
+            """
+            nonlocal last_progress_edit
+            nonlocal downloading_file
 
+            current_time = time.time()
+            downloading_file.update_progress(current, total)
+
+            estimated_completion_time_str = calculate_download_eta(
+                current, total, downloading_file.start_time
+            )
+
+            if (current_time - last_progress_edit >= 10) or (current == total):
+                last_progress_edit = current_time
+                await downloading_message.edit(
+                    "⏳ Downloading\n\n"
+                    f"`ETA: {estimated_completion_time_str}`\n"
+                    f"`{downloading_file.received_mb}/{downloading_file.total_mb}`\n"
+                    f"`{downloading_file.progress:.2f}%`\n"
+                )
+
+        # Download the file
         try:
-            newFile = await context.bot.get_file(
-                message.document.file_id, read_timeout=1000
+            await video_message.download_media(
+                file=file_path, progress_callback=progress_callback
             )
+
+            await downloading_message.edit("✅ File downloaded successfully.")
         except Exception as e:
-            await message.reply_text(
-                (
-                    f"⛔ Error downloading file.\n\n"
-                    f"> 📄 *File name:*   `{downloading_file.file_name}`\n"
-                    f"> 💾 *File size:*   `{downloading_file.file_size_mb}`\n"
-                    f"Error: ```{e}```"
-                ),
-                parse_mode="MarkdownV2",
+            error_response = "⛔ Error downloading file.\n\n" + create_blockquote(
+                {
+                    "📄File name": downloading_file.file_name,
+                    "💾File size": downloading_file.file_size_mb,
+                    "⚠️Error": str(e),
+                }
             )
-            return
+            return await event.reply(
+                error_response,
+                parse_mode="html",
+            )
 
         # Remove file from downloading_files
-        downloading_files.pop(message.document.file_id)
-
-        # Work out time taken to download file
-        download_complete_time = time.time()
-        dowload_duration = DownloadingFile.convert_duration(
-            download_complete_time - start_time
-        )
-        file_path = newFile.file_path.split("/")[-1]
-
-        # Rename the file to the original file name
-        current_file_path = f"{BOT_API_DIR}{TOKEN_SUB_DIR}/documents/{file_path}"
-        move_to_path = f"{DOWNLOAD_TO_DIR}{file_name}"
-
-        # Make DOWNLOAD_TO_DIR if it doesn't exist
-        os.makedirs(DOWNLOAD_TO_DIR, exist_ok=True)
-        shutil.move(current_file_path, move_to_path)
+        downloading_files.pop(document.id)
 
         # If linux, give file correct permissions
         if platform.system() == "Linux":
-            os.chmod(move_to_path, 0o664)
+            os.chmod(file_path, 0o664)
 
-        # Calculate durations
-        complete_time = time.time()
-        moving_duration = DownloadingFile.convert_duration(
-            complete_time - download_complete_time
-        )
-        total_duration = DownloadingFile.convert_duration(complete_time - start_time)
-
-        response_message = (
-            f"✅ File downloaded successfully\\.\n\n"
-            f"> 📄 *File name:*   `{downloading_file.file_name}`\n"
-            f"> 📂 *File path:*   `{file_path}`\n"
-            f"> 💾 *File size:*   `{downloading_file.file_size_mb}`\n"
-            f"> ⏱ *Download Duration:*   `{dowload_duration}`\n"
-            f"> ⏱ *Moving Duration:*   `{moving_duration}`\n"
-            f"> ⏱ *Total Duration:*   `{total_duration}`\n"
+        dowload_duration = DownloadingFile.convert_duration(
+            time.time() - downloading_file.start_time
         )
 
-        await message.reply_text(response_message, parse_mode="MarkdownV2")
+        response_message = "✅ File downloaded successfully.\n\n" + create_blockquote(
+            {
+                "📄File name": downloading_file.file_name,
+                "📂File path": file_path,
+                "💾File size": downloading_file.file_size_mb,
+                "⏱Download Duration": dowload_duration,
+            }
+        )
+        await event.reply(response_message, parse_mode="html")
+
     else:
-        logger.info("Download cancelled")
-        await message.reply_text("Download cancelled.")
+        await event.reply("❌ Download cancelled.")
