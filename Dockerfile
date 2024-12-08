@@ -19,6 +19,9 @@ RUN apt-get update && apt-get install -y \
 # Upgrade setuptools
 RUN pip install --upgrade setuptools
 
+# Install cryptg and its dependencies separately
+RUN pip install --no-cache-dir cryptg
+
 # Install packages from requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
