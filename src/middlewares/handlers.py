@@ -22,6 +22,11 @@ def command_handler(
                     "You are not authorized to use this command."
                 )
 
+            if env.CHAT_ID != event.chat_id:
+                return await event.respond(
+                    "This command can only be used in the specified chat."
+                )
+
             return await func(event)
 
         # Add the command to the list of available commands

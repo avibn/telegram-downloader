@@ -6,10 +6,8 @@ import time
 from telethon import Button, types
 from telethon.events import CallbackQuery, NewMessage
 
-from ..middlewares.handlers import (
-    callback_handler,
-    command_handler,
-)
+from ..libs.FastTelethon import download_file
+from ..middlewares.handlers import callback_handler, command_handler
 from ..models import DownloadingFile
 from ..utils import (
     calculate_download_eta,
@@ -144,7 +142,7 @@ async def callback(event: CallbackQuery.Event):
                 current, total, downloading_file.start_time
             )
 
-            if (current_time - last_progress_edit >= 10) or (current == total):
+            if (current_time - last_progress_edit >= 6) or (current == total):
                 last_progress_edit = current_time
                 await downloading_message.edit(
                     "⏳ Downloading\n\n"
@@ -155,9 +153,33 @@ async def callback(event: CallbackQuery.Event):
 
         # Download the file
         try:
-            await video_message.download_media(
-                file=file_path, progress_callback=progress_callback
+            # Option 1 - Download the file using the provided high-level method
+            file_path = await video_message.download_media(
+                file=file_path,
+                progress_callback=progress_callback,
             )
+            if not file_path:
+                raise Exception("File download failed.")
+
+            # Option 2 - Download the file with preset part size
+            # https://github.com/LonamiWebs/Telethon/issues/4110#issuecomment-2014044184
+            # inputLoc = types.InputDocumentFileLocation(
+            #     id=document.id,
+            #     access_hash=document.access_hash,
+            #     file_reference=document.file_reference,
+            #     thumb_size="",
+            # )
+            # await event.client.download_file(
+            #     inputLoc,
+            #     file=file_path,
+            #     part_size_kb=512,
+            #     file_size=document.size,
+            #     progress_callback=progress_callback,
+            # )
+
+            # Option 3 - Download the file using Fast Telethon
+            # with open(file_path, "wb") as out:
+            #     await download_file(event.client, document, out, progress_callback)
 
             await downloading_message.edit("✅ File downloaded successfully.")
         except Exception as e:
@@ -172,9 +194,9 @@ async def callback(event: CallbackQuery.Event):
                 error_response,
                 parse_mode="html",
             )
-
-        # Remove file from downloading_files
-        downloading_files.pop(document.id)
+        finally:
+            # Remove file from downloading_files
+            downloading_files.pop(document.id)
 
         # If linux, give file correct permissions
         if platform.system() == "Linux":

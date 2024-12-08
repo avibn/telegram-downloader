@@ -1,10 +1,5 @@
 import logging
 
-# Import all the cogs
-import src.cogs
-
-from .client import client
-
 # Enable logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -12,6 +7,10 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
+# Import all the cogs
+import src.cogs
+
+from .client import client
 
 # List of all handlers
 logger.info(

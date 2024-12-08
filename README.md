@@ -27,12 +27,10 @@ Using Docker is the easiest way to set this up. Follow these steps:
    | --- | --- |
    | `TELEGRAM_API_ID` | Your Telegram API ID. You can get this from [my.telegram.org](https://my.telegram.org/auth?to=apps). |
    | `TELEGRAM_API_HASH` | Your Telegram API Hash. You can get this from [my.telegram.org](https://my.telegram.org/auth?to=apps). |
-   | `TELEGRAM_LOCAL` | Set this to `true` to use the local Telegram Bot API server. |
    | `BOT_TOKEN` | The token for your Telegram bot. You can create a new bot and get the token from [BotFather](https://t.me/botfather). |
    | `USER_ID` | Your Telegram user ID. This is the user that is allowed to send files to be downloaded with the bot (usually yourself). If you don't know your ID, you can use the `/info` command on the bot. |
    | `CHAT_ID` | The ID of the chat that the bot is allowed to download from. This can be the same as your `USER_ID` if you want to send files directly via DM to the bot. If you don't know the chat ID, you can use the `/info` command on the bot. |
    | `DOWNLOAD_TO_DIR` | The output directory where you want to download the files to (e.g., your downloads folder). |
-   | `BOT_API_DIR` | The directory where the local bot API stores its files. You can alternatively edit the docker-compose file to use a Docker volume instead. In my case, I wanted to store it in a specific directory. |
 
     You can also set the environment variables in a .env file - just make sure to uncomment the `env_file: .env` lines in `docker-compose.prod.yml`.
 

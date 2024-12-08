@@ -10,16 +10,15 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
     BOT_TOKEN: str
-    LOCAL_BOT_API_URL: str
-    BOT_API_DIR: str
     DOWNLOAD_TO_DIR: str
     USER_ID: int
     CHAT_ID: int
     TELEGRAM_API_ID: int
     TELEGRAM_API_HASH: str
-    TELEGRAM_LOCAL: bool
 
 
 logger.info("Loading environment variables")
