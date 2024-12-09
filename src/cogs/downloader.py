@@ -154,12 +154,12 @@ async def callback(event: CallbackQuery.Event):
         # Download the file
         try:
             # Option 1 - Download the file using the provided high-level method
-            file_path = await video_message.download_media(
-                file=file_path,
-                progress_callback=progress_callback,
-            )
-            if not file_path:
-                raise Exception("File download failed.")
+            # file_path = await video_message.download_media(
+            #     file=file_path,
+            #     progress_callback=progress_callback,
+            # )
+            # if not file_path:
+            #     raise Exception("File download failed.")
 
             # Option 2 - Download the file with preset part size
             # https://github.com/LonamiWebs/Telethon/issues/4110#issuecomment-2014044184
@@ -178,8 +178,8 @@ async def callback(event: CallbackQuery.Event):
             # )
 
             # Option 3 - Download the file using Fast Telethon
-            # with open(file_path, "wb") as out:
-            #     await download_file(event.client, document, out, progress_callback)
+            with open(file_path, "wb") as out:
+                await download_file(event.client, document, out, progress_callback)
 
             await downloading_message.edit("✅ File downloaded successfully.")
         except Exception as e:
