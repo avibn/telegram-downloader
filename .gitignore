@@ -126,6 +126,7 @@ celerybeat.pid
 .venv
 env/
 venv/
+venv*/
 ENV/
 env.bak/
 venv.bak/
@@ -165,3 +166,4 @@ cython_debug/
 testing/
 bot-api/
 downloads/
+*.session

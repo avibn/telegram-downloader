@@ -4,10 +4,12 @@ from datetime import datetime
 
 
 @dataclass
-class DownloadingFile:
+class DownloadFile:
+    file_id: str
     file_name: str
     file_size: int
     start_time: float
+    download_retries: int = 0
     _start_datetime: InitVar[datetime] = None
 
     def __post_init__(self, _start_datetime):
@@ -33,3 +35,7 @@ class DownloadingFile:
     @staticmethod
     def convert_size(size: int) -> str:
         return f"{size / 1024 / 1024:.2f} MB"
+
+
+# Current downloading files
+downloading_files: dict[str, DownloadFile] = {}
