@@ -19,15 +19,14 @@ from ..middlewares.handlers import (
     message_handler,
 )
 from ..models import DownloadFile, downloading_files
-from ..utils import check_file_exists, get_file
+from ..utils import check_file_exists, env, get_file
 
 logger = logging.getLogger(__name__)
 
 # Environment variables
-# todo -- add env validation
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-BOT_API_DIR = os.getenv("BOT_API_DIR")
-DOWNLOAD_TO_DIR = os.getenv("DOWNLOAD_TO_DIR")
+BOT_TOKEN = env.BOT_TOKEN
+BOT_API_DIR = env.BOT_API_DIR
+DOWNLOAD_TO_DIR = env.DOWNLOAD_TO_DIR
 
 # Replacing colons with a different character for Windows
 TOKEN_SUB_DIR = BOT_TOKEN.replace(":", "") if os.name == "nt" else BOT_TOKEN
@@ -58,12 +57,15 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Download the file sent by the user."""
     logger.info("Download command received")
 
-    # Check if file already exists or is being downloaded
-    if check := check_file_exists(
-        update.message.document.file_id, update.message.document.file_name
-    ):
-        await update.message.reply_text(check[1])
-        return
+    try:
+        check_file_exists(
+            update.message.document.file_id, update.message.document.file_name
+        )
+    except Exception as e:
+        logger.error(f"Error checking file exists: {e}")
+        await update.message.reply_text(
+            f"⛔ Error checking if file exists\n```\n{e}```"
+        )
 
     # File details
     file_name = update.message.document.file_name
@@ -114,8 +116,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.info("Downloading file...")
 
         # Check if file already exists or is being downloaded
-        if check := check_file_exists(file_id, file_name):
-            await message.reply_text(check[1])
+        try:
+            check_file_exists(file_id, file_name)
+        except Exception as e:
+            logger.error(f"Error checking file exists: {e}")
+            await message.reply_text(f"⛔ Error checking if file exists\n```\n{e}```")
             return
 
         start_time = time.time()

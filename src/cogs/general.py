@@ -6,10 +6,11 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from ..middlewares.handlers import command_handler
+from ..utils import env
 
 logger = logging.getLogger(__name__)
 
-DOWNLOAD_TO_DIR = os.getenv("DOWNLOAD_TO_DIR")
+DOWNLOAD_TO_DIR = env.DOWNLOAD_TO_DIR
 
 # List of available commands
 commands = {

@@ -1,16 +1,13 @@
 import html
 import logging
-import os
 import traceback
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from ..utils import trancute_message
+from ..utils import env, trancute_message
 
 logger = logging.getLogger(__name__)
-
-USER_ID = os.getenv("USER_ID")
 
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -47,7 +44,9 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     ]
 
     for message in error_messages:
-        await context.bot.send_message(chat_id=USER_ID, text=message, parse_mode="HTML")
+        await context.bot.send_message(
+            chat_id=env.USER_ID, text=message, parse_mode="HTML"
+        )
 
     # Send error message in chat
     await update.message.reply_text(

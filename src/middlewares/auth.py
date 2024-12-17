@@ -1,14 +1,12 @@
-import os
 from functools import wraps
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-USER_ID = os.getenv("USER_ID")
-CHAT_ID = os.getenv("CHAT_ID")
+from ..utils import env
 
-if not all([USER_ID, CHAT_ID]):
-    raise ValueError("Please set USER_ID and CHAT_ID in .env file")
+USER_ID = env.USER_ID
+CHAT_ID = env.CHAT_ID
 
 
 def auth_required(func):
