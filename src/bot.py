@@ -1,30 +1,11 @@
-# Environment variables
-from dotenv import load_dotenv
-
-load_dotenv(override=True)
-
 import logging
-import os
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from .cogs import downloader_commands, error_handler, general_commands
+from .utils import env
 
-# Environment variables
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-LOCAL_BOT_API_URL = os.getenv("LOCAL_BOT_API_URL")
-BOT_API_DIR = os.getenv("BOT_API_DIR")
-DOWNLOAD_TO_DIR = os.getenv("DOWNLOAD_TO_DIR")
-
-if not all([BOT_TOKEN, LOCAL_BOT_API_URL, BOT_API_DIR, DOWNLOAD_TO_DIR]):
-    raise ValueError("Please set all environment variables in .env file")
-
-# Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -37,11 +18,11 @@ def main() -> None:
     # Create the Application and pass it your bot's token.
     application = (
         Application.builder()
-        .token(BOT_TOKEN)
+        .token(env.BOT_TOKEN)
         .concurrent_updates(True)
         .local_mode(True)
-        .base_url(f"{LOCAL_BOT_API_URL}/bot")
-        .base_file_url(f"{LOCAL_BOT_API_URL}/file/bot")
+        .base_url(f"{env.LOCAL_BOT_API_URL}/bot")
+        .base_file_url(f"{env.LOCAL_BOT_API_URL}/file/bot")
         .build()
     )
 

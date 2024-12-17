@@ -1,1 +1,1 @@
-from .downloading_file import DownloadingFile
+from .downloading_file import DownloadFile, downloading_files
