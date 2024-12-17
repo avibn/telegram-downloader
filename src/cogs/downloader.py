@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import os
 import platform
 import shutil
@@ -39,18 +40,31 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("No files are being downloaded at the moment.")
         return
 
-    status_message = "*Downloading files status:*\n\n"
-    for file in downloading_files.values():
-        status_message += (
+    status_message = "*Downloading files status:*\nPage 1\n"
+
+    for i, file in enumerate(downloading_files.values(), start=1):
+        file_status = (
             f"> 📄 *File name:*   `{file.file_name}`\n"
             f"> 💾 *File size:*   `{file.file_size_mb}`\n"
             f"> ⏰ *Start time:*   `{file.start_datetime}`\n"
             f"> ⏱ *Duration:*   `{file.current_download_duration}`\n"
             f"> 🔻 *Retries:*   `{file.download_retries}`\n"
-            f"> 🔄 *Status:*   `{file.status}`\n"
+            f"> 🔄 *Status:*   `{file.status}`\n\n"
         )
+        status_message += file_status
 
-    await update.message.reply_text(status_message, parse_mode="MarkdownV2")
+        if i % 2 == 0 or i == len(downloading_files):
+            # Add page number
+            if i > 2:
+                status_message = f"Page {math.ceil(i / 2)}\n" + status_message
+
+            await context.bot.send_message(
+                chat_id=update.message.chat_id,
+                text=status_message,
+                parse_mode="MarkdownV2",
+            )
+            status_message = ""
+            await asyncio.sleep(0.3)
 
 
 @message_handler(filters.Document.VIDEO)
