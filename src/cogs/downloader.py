@@ -1,8 +1,8 @@
+import asyncio
 import logging
 import os
 import platform
 import shutil
-import time
 import traceback
 
 from telegram import (
@@ -45,7 +45,9 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"> 📄 *File name:*   `{file.file_name}`\n"
             f"> 💾 *File size:*   `{file.file_size_mb}`\n"
             f"> ⏰ *Start time:*   `{file.start_datetime}`\n"
-            f"> ⏱ *Duration:*   `{file.download_time}`\n\n"
+            f"> ⏱ *Duration:*   `{file.current_download_duration}`\n"
+            f"> 🔻 *Retries:*   `{file.download_retries}`\n"
+            f"> 🔄 *Status:*   `{file.status}`\n"
         )
 
     await update.message.reply_text(status_message, parse_mode="MarkdownV2")
@@ -64,8 +66,10 @@ async def download(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     except Exception as e:
         logger.error(f"Error checking file exists: {e}")
         await update.message.reply_text(
-            f"⛔ Error checking if file exists\n```\n{e}```"
+            f"⛔ File already exists\!\nError:```\n{e}```",
+            parse_mode="MarkdownV2",
         )
+        return
 
     # File details
     file_name = update.message.document.file_name
@@ -123,14 +127,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await message.reply_text(f"⛔ Error checking if file exists\n```\n{e}```")
             return
 
-        start_time = time.time()
-
         # Add file to downloading_files
         download_file = DownloadFile(
             file_id,
             file_name,
             file_size,
-            start_time,
         )
         downloading_files[file_id] = download_file
 
@@ -159,33 +160,36 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Remove file from downloading_files
         downloading_files.pop(file_id)
-
-        # Work out time taken to download file
-        download_complete_time = time.time()
-        dowload_duration = DownloadFile.convert_duration(
-            download_complete_time - start_time
-        )
-        file_path = new_file.file_path.split("/")[-1]
+        download_file.download_complete()
 
         # Rename the file to the original file name
+        file_path = new_file.file_path.split("/")[-1]
         current_file_path = f"{BOT_API_DIR}{TOKEN_SUB_DIR}/documents/{file_path}"
         move_to_path = f"{DOWNLOAD_TO_DIR}{file_name}"
 
-        # Make DOWNLOAD_TO_DIR if it doesn't exist
-        # todo -- if same disk, just rename
-        os.makedirs(DOWNLOAD_TO_DIR, exist_ok=True)
-        shutil.move(current_file_path, move_to_path)
+        # Move the file to the download directory
+        try:
+            os.makedirs(DOWNLOAD_TO_DIR, exist_ok=True)
+
+            # todo -- if same disk, just rename
+            await asyncio.to_thread(shutil.move, current_file_path, move_to_path)
+            download_file.move_complete()
+        except Exception as e:
+            logger.error(f"Error moving file: {e}")
+            await message.reply_text(
+                (
+                    f"⛔ Error moving file\n"
+                    f"> 📂 *File path:*   `{file_path}`\n"
+                    f"> 📂 *Move to path:*   `{move_to_path}`\n"
+                    f"```\n{e}```"
+                ),
+                parse_mode="MarkdownV2",
+            )
+            return
 
         # If linux, give file correct permissions
         if platform.system() == "Linux":
             os.chmod(move_to_path, 0o664)
-
-        # Calculate durations
-        complete_time = time.time()
-        moving_duration = DownloadFile.convert_duration(
-            complete_time - download_complete_time
-        )
-        total_duration = DownloadFile.convert_duration(complete_time - start_time)
 
         response_message = (
             f"✅ File downloaded successfully\\.\n\n"
@@ -193,9 +197,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             f"> 📂 *File path:*   `{file_path}`\n"
             f"> 💾 *File size:*   `{download_file.file_size_mb}`\n"
             f"> 🔻 *Retries:*   `{download_file.download_retries}`\n"
-            f"> ⏱ *Download Duration:*   `{dowload_duration}`\n"
-            f"> ⏱ *Moving Duration:*   `{moving_duration}`\n"
-            f"> ⏱ *Total Duration:*   `{total_duration}`\n"
+            f"> ⏱ *Download Duration:*   `{download_file.download_duration}`\n"
+            f"> ⏱ *Moving Duration:*   `{download_file.move_duration}`\n"
+            f"> ⏱ *Total Duration:*   `{download_file.total_duration}`"
         )
 
         await message.reply_text(response_message, parse_mode="MarkdownV2")

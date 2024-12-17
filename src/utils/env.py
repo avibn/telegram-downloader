@@ -17,8 +17,8 @@ class Settings(BaseSettings):
     LOCAL_BOT_API_URL: str
     BOT_API_DIR: str
     DOWNLOAD_TO_DIR: str
-    USER_ID: int
-    CHAT_ID: int
+    USER_ID: str
+    CHAT_ID: str
 
 
 logger.info("Loading environment variables")

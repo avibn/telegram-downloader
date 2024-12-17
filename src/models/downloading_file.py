@@ -1,6 +1,5 @@
-import time
 from dataclasses import InitVar, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 @dataclass
@@ -8,12 +7,39 @@ class DownloadFile:
     file_id: str
     file_name: str
     file_size: int
-    start_time: float
     download_retries: int = 0
     _start_datetime: InitVar[datetime] = None
+    _finish_download_datetime: datetime = None
+    _finish_move_datetime: datetime = None
 
     def __post_init__(self, _start_datetime):
         self._start_datetime = _start_datetime or datetime.now()
+
+    def download_complete(self):
+        self._finish_download_datetime = datetime.now()
+
+    def move_complete(self):
+        self._finish_move_datetime = datetime.now()
+
+    @property
+    def current_download_duration(self) -> str:
+        duration = datetime.now() - self._start_datetime
+        return self.convert_duration(duration)
+
+    @property
+    def download_duration(self) -> str:
+        duration = self._finish_download_datetime - self._start_datetime
+        return self.convert_duration(duration)
+
+    @property
+    def move_duration(self) -> str:
+        duration = self._finish_move_datetime - self._finish_download_datetime
+        return self.convert_duration(duration)
+
+    @property
+    def total_duration(self) -> str:
+        duration = self._finish_move_datetime - self._start_datetime
+        return self.convert_duration(duration)
 
     @property
     def start_datetime(self) -> str:
@@ -21,16 +47,20 @@ class DownloadFile:
 
     @property
     def file_size_mb(self) -> str:
-        return f"{self.file_size / 1024 / 1024:.2f} MB"
+        return self.convert_size(self.file_size)
 
     @property
-    def download_time(self) -> str:
-        time_taken = time.time() - self.start_time
-        return self.convert_duration(time_taken)
+    def status(self) -> str:
+        if self._finish_move_datetime:
+            return "Complete"
+        if self._finish_download_datetime:
+            return "Moving"
+        return "Downloading"
 
     @staticmethod
-    def convert_duration(time_taken: float) -> str:
-        return f"{time_taken:.2f} secs  ({time_taken / 60:.2f} mins)"
+    def convert_duration(time_taken: timedelta) -> str:
+        total_minutes = time_taken.total_seconds() / 60
+        return f"{time_taken.total_seconds():.2f} secs  ({total_minutes:.2f} mins)"
 
     @staticmethod
     def convert_size(size: int) -> str:
