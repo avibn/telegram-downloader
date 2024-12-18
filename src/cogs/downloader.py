@@ -171,10 +171,8 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 parse_mode="MarkdownV2",
             )
             return
-
-        # Remove file from downloading_files
-        downloading_files.pop(file_id)
-        download_file.download_complete()
+        else:
+            download_file.download_complete()
 
         # Rename the file to the original file name
         file_path = new_file.file_path.split("/")[-1]
@@ -184,22 +182,31 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         # Move the file to the download directory
         try:
             os.makedirs(DOWNLOAD_TO_DIR, exist_ok=True)
+            os.rename(current_file_path, move_to_path)
+        except Exception as rename_error:
+            logger.error(f"Error RENAMING file: {rename_error}")
 
-            # todo -- if same disk, just rename
-            await asyncio.to_thread(shutil.move, current_file_path, move_to_path)
-            download_file.move_complete()
-        except Exception as e:
-            logger.error(f"Error moving file: {e}")
-            await message.reply_text(
-                (
-                    f"⛔ Error moving file\n"
-                    f"> 📂 *File path:*   `{file_path}`\n"
-                    f"> 📂 *Move to path:*   `{move_to_path}`\n"
-                    f"```\n{e}```"
-                ),
-                parse_mode="MarkdownV2",
-            )
-            return
+            # Move the file instead of renaming
+            try:
+                await asyncio.to_thread(shutil.move, current_file_path, move_to_path)
+            except Exception as move_error:
+                logger.error(f"Error MOVING file: {move_error}")
+
+                downloading_files.pop(file_id)
+                await message.reply_text(
+                    (
+                        f"⛔ Error moving file\n"
+                        f"> 📂 *File path:*   `{file_path}`\n"
+                        f"> 📂 *Move to path:*   `{move_to_path}`\n"
+                        f"Rename error:\n```\n{rename_error}```\n"
+                        f"Move error:\n```\n{move_error}```"
+                    ),
+                    parse_mode="MarkdownV2",
+                )
+                return
+
+        download_file.move_complete()
+        downloading_files.pop(file_id)
 
         # If linux, give file correct permissions
         if platform.system() == "Linux":
