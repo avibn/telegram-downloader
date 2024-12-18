@@ -24,7 +24,6 @@ class Settings(BaseSettings):
 logger.info("Loading environment variables")
 
 try:
-    logger.info("Validating environment variables")
     env = Settings()
 except ValidationError as e:
     logger.error("Environment variables validation error: %s", e)
